@@ -6,4 +6,5 @@ new ScreepsStatsd(
     process.env.SCREEPS_PASSWORD,
     process.env.SCREEPS_SHARD,
     process.env.GRAPHITE_PORT_8125_UDP_ADDR,
+    process.env.METRICS_PREFIX,
 ).run();

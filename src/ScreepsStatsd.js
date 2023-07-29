@@ -3,7 +3,7 @@
  *
  * Licensed under the MIT license
  * For full copyright and license information, please see the LICENSE file
- * 
+ *
  * @author     Bryan Conrad <bkconrad@gmail.com>
  * @copyright  2016 Bryan Conrad
  * @link       https://github.com/hopsoft/docker-graphite-statsd
@@ -23,22 +23,31 @@ export default class ScreepsStatsd {
   _host;
   _email;
   _password;
-  _shard;
+  _shards;
   _graphite;
+  _prefixes;
   _token;
   _success;
-  constructor(host, email, password, shard, graphite) {
+  constructor(host, email, password, shards, graphite, prefixes) {
     this._host = host;
     this._email = email;
     this._password = password;
-    this._shard = shard;
+    this._shards = shards.split(",");
     this._graphite = graphite;
+    this._prefixes = prefixes.split(",");
+    if (this._prefixes.length < this._shards.length) {
+      for (let i = 0; i < this._shards.length.length; i++) {
+        if (!this._prefixes[i]) {
+          this._prefixes[i] = "";
+        }
+      }
+    }
     this._client = new StatsD({host: this._graphite});
   }
   run( string ) {
     this.signin();
 
-    setInterval(() => this.loop(), 15000);
+    setInterval(() => this.loop(), 1000);
   }
 
   loop() {
@@ -46,7 +55,7 @@ export default class ScreepsStatsd {
   }
 
   async signin() {
-    if(this.token) {
+    if(this._token) {
       return;
     }
     console.log("New login request -", new Date());
@@ -68,20 +77,24 @@ export default class ScreepsStatsd {
     try {
       await this.signin();
 
-      const response = await fetch(this._host + `/api/user/memory?path=stats&shard=${this._shard}`, {
-        method: 'GET',
-        headers: {
-          "X-Token": this._token,
-          "X-Username": this._token,
-          'content-type': 'application/json',
-        }
-      });
-      const data = await response.json();
-      
-      this._token = response.headers['x-token'];
-      if (!data?.data || data.error) throw new Error(data?.error ?? 'No data');
-      const unzippedData = JSON.parse(zlib.gunzipSync(Buffer.from(data.data.split('gz:')[1], 'base64')).toString())
-      this.report(unzippedData);
+      for (let i = 0; i < this._shards.length; i++) {
+        const shard = this._shards[i];
+        const prefix = this._prefixes[i];
+        const response = await fetch(this._host + `/api/user/memory?path=stats&shard=${shard}`, {
+          method: 'GET',
+          headers: {
+            "X-Token": this._token,
+            "X-Username": this._token,
+            'content-type': 'application/json',
+          }
+        });
+        const data = await response.json();
+
+        this._token = response.headers['x-token'] || this._token;
+        if (!data?.data || data.error) throw new Error(data?.error ?? 'No data');
+        const unzippedData = JSON.parse(zlib.gunzipSync(Buffer.from(data.data.split('gz:')[1], 'base64')).toString())
+        this.report(unzippedData, prefix);
+      }
     } catch (e) {
       console.error(e);
       this._token = undefined;
