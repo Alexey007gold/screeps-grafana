@@ -10,16 +10,12 @@ services:
         dockerfile: Dockerfile
     restart: always
     links:
-     - statsd
-    environment:
-      GRAPHITE_PORT_8125_UDP_ADDR: "statsd"
-    env_file: docker-compose.env
-  statsd:
-    image: ennexa/statsd
-    links: 
      - graphite
-  graphite: 
-    image: ennexa/graphite
+    environment:
+     GRAPHITE_PORT_8125_UDP_ADDR: "graphite"
+    env_file: docker-compose.env
+  graphite:
+    image: graphiteapp/graphite-statsd
     restart: always
     volumes:
      - graphite_conf:/opt/graphite/conf
