@@ -102,10 +102,14 @@ export default class ScreepsStatsd {
   }
 
   report(data, prefix="") {
-    if (prefix === '') console.log("Pushing to gauges -", new Date())
+    console.log(`Pushing to gauges with prefix "${prefix}"; - ${new Date()}`, )
+    this.reportRecursive(data, prefix);
+  }
+
+  reportRecursive(data, prefix="") {
     for (const [k,v] of Object.entries(data)) {
       if (typeof v === 'object') {
-        this.report(v, prefix+k+'.');
+        this.reportRecursive(v, prefix+k+'.');
       } else {
         this._client.gauge(prefix+k, v);
       }
