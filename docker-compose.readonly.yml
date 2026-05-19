@@ -1,0 +1,37 @@
+version: "3.4"
+volumes:
+  graphite_conf:
+    external: true
+    name: historical_screeps_graphite_conf
+  graphite_data:
+    external: true
+    name: historical_screeps_graphite_data
+  grafana_data:
+    external: true
+    name: historical_screeps_grafana_data
+services:
+  graphite:
+    image: graphiteapp/graphite-statsd
+    restart: always
+    environment:
+      CARBON_DISABLED: 1
+      CARBON_AGGREGATOR_DISABLED: 1
+      CARBON_RELAY_DISABLED: 1
+      STATSD_DISABLED: 1
+      BRUBECK_DISABLED: 1
+      COLLECTD_DISABLED: 1
+      GO_CARBON_DISABLED: 1
+      REDIS_DISABLED: 1
+    volumes:
+     - graphite_conf:/opt/graphite/conf:ro
+     - graphite_data:/opt/graphite/storage/whisper:ro
+     - ./scripts/whisper.py:/opt/graphite/lib/python3.9/site-packages/whisper.py:ro
+  grafana:
+    image: grafana/grafana
+    restart: always
+    volumes:
+     - grafana_data:/var/lib/grafana
+    links:
+     - graphite
+    ports:
+     - "1338:3000"

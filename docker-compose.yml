@@ -1,8 +1,11 @@
 version: "2"
 volumes:
-  graphite_conf:
-  graphite_data:
-  grafana_data:
+  screeps-grafana_graphite_conf:
+    external: true
+  screeps-grafana_graphite_data:
+    external: true
+  screeps-grafana_grafana_data:
+    external: true
 services:
   node:
     build:
@@ -18,13 +21,13 @@ services:
     image: graphiteapp/graphite-statsd
     restart: always
     volumes:
-     - graphite_conf:/opt/graphite/conf
-     - graphite_data:/opt/graphite/storage/whisper
+     - screeps-grafana_graphite_conf:/opt/graphite/conf
+     - screeps-grafana_graphite_data:/opt/graphite/storage/whisper
   grafana:
     image: grafana/grafana
     restart: always
     volumes:
-     - grafana_data:/var/lib/grafana
+     - screeps-grafana_grafana_data:/var/lib/grafana
     links:
      - graphite
     ports:
