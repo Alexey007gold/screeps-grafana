@@ -20,6 +20,13 @@ services:
   graphite:
     image: graphiteapp/graphite-statsd
     restart: always
+    environment:
+      CARBON_AGGREGATOR_DISABLED: 1
+      CARBON_RELAY_DISABLED: 1
+      BRUBECK_DISABLED: 1
+      COLLECTD_DISABLED: 1
+      GO_CARBON_DISABLED: 1
+      REDIS_DISABLED: 1
     volumes:
      - screeps-grafana_graphite_conf:/opt/graphite/conf
      - screeps-grafana_graphite_data:/opt/graphite/storage/whisper
