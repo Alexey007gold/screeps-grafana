@@ -1,0 +1,14 @@
+version: "2"
+volumes:
+  screeps-grafana_vm_archive:
+    external: true
+services:
+  victoriametrics-archive:
+    image: victoriametrics/victoria-metrics:latest
+    command:
+      - --retentionPeriod=60
+      - --storageDataPath=/storage
+    ports:
+      - "8429:8428"
+    volumes:
+     - screeps-grafana_vm_archive:/storage

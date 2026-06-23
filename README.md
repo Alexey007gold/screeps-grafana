@@ -3,6 +3,36 @@
 Pretty graphs for Screeps stats. 
 ![sampleDashboard](sampleDashboard.png)
 
+## Stack
+
+Metrics are collected by a Node.js container that connects to the Screeps API and forwards stats to [VictoriaMetrics](https://victoriametrics.com/) via the Graphite plaintext protocol. Grafana visualises the data using VictoriaMetrics' built-in Graphite-compatible query API — existing Graphite-syntax dashboard queries work without modification.
+
+| Container | Image | Purpose |
+|---|---|---|
+| `node` | custom (this repo) | Polls Screeps API, sends metrics via StatsD UDP |
+| `victoriametrics` | `victoriametrics/victoria-metrics` | Time-series storage (replaces Graphite/Whisper) |
+| `grafana` | `grafana/grafana` | Dashboard UI |
+
+**Why VictoriaMetrics instead of Graphite/Whisper?**
+- Much faster queries on Docker Desktop (Windows/Mac) — Whisper's file-per-metric I/O crosses the VM boundary on every query
+- Compressed storage (~10–30× smaller than Whisper)
+- Instant snapshots for backup via HTTP API
+
+### Archive setup
+
+`docker-compose.archive.yml` provides a separate VictoriaMetrics instance for long-term historical data (5-year retention, port 8429). It is not started automatically — spin it up on demand for viewing old data:
+
+```
+docker-compose -f docker-compose.archive.yml up -d
+```
+
+Add `http://localhost:8429` as a second Graphite datasource in Grafana to query the archive alongside live data.
+
+**Monthly backup workflow:**
+1. Export live data: `curl "http://localhost:8428/api/v1/export?match[]=stats.*" > backup-$(date +%Y%m).ndjson`
+2. Upload to storage (Dropbox, S3, etc.)
+3. To rebuild the archive: start the archive container and import each monthly export: `curl -X POST "http://localhost:8429/api/v1/import" --data-binary @backup-YYYYMM.ndjson`
+
 There are two ways to get started:
 
 ## Path 1: Easy but not robust

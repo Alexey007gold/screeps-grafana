@@ -1,8 +1,6 @@
 version: "2"
 volumes:
-  screeps-grafana_graphite_conf:
-    external: true
-  screeps-grafana_graphite_data:
+  screeps-grafana_vm_data:
     external: true
   screeps-grafana_grafana_data:
     external: true
@@ -13,43 +11,27 @@ services:
         dockerfile: Dockerfile
     restart: always
     links:
-     - graphite
+     - victoriametrics
     environment:
-     GRAPHITE_PORT_8125_UDP_ADDR: "graphite"
+     GRAPHITE_PORT_8125_UDP_ADDR: "victoriametrics"
     env_file: docker-compose.env
-  graphite:
-    image: graphiteapp/graphite-statsd
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
     restart: always
-    environment:
-      CARBON_AGGREGATOR_DISABLED: 1
-      CARBON_RELAY_DISABLED: 1
-      BRUBECK_DISABLED: 1
-      COLLECTD_DISABLED: 1
-      GO_CARBON_DISABLED: 1
-      REDIS_DISABLED: 1
+    command:
+      - --retentionPeriod=12
+      - --statsdListenAddr=:8125
+      - --storageDataPath=/storage
+    ports:
+      - "8428:8428"
     volumes:
-     - screeps-grafana_graphite_conf:/opt/graphite/conf
-     - screeps-grafana_graphite_data:/opt/graphite/storage/whisper
+     - screeps-grafana_vm_data:/storage
   grafana:
     image: grafana/grafana
     restart: always
     volumes:
      - screeps-grafana_grafana_data:/var/lib/grafana
     links:
-     - graphite
+     - victoriametrics
     ports:
      - "1337:3000"
-  # grafana_setup_datasource:
-  #   image: appropriate/curl
-  #   links:
-  #    - grafana
-  #   command: |
-  #     curl 'http://admin:admin@grafana:3000/api/datasources' -X POST -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"name":"localGraphite","type":"graphite","url":"http://graphite:8000","access":"proxy","isDefault":true,"database":""}'
-  # grafana_setup_sampledashboard:
-  #   image: appropriate/curl
-  #   links:
-  #    - grafana
-  #   volumes:
-  #     - ./sampleDashboard.json:/sampleDashboard.json
-  #   command: |
-  #     curl 'http://admin:admin@grafana:3000/api/dashboards/db' -X POST -H 'Content-Type: application/json;charset=UTF-8' --data @/sampleDashboard.json 
