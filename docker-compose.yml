@@ -11,16 +11,25 @@ services:
         dockerfile: Dockerfile
     restart: always
     links:
-     - victoriametrics
+     - statsd
     environment:
-     GRAPHITE_PORT_8125_UDP_ADDR: "victoriametrics"
+     GRAPHITE_PORT_8125_UDP_ADDR: "statsd"
     env_file: docker-compose.env
+  statsd:
+    image: statsd/statsd
+    restart: always
+    links:
+     - victoriametrics
+    ports:
+     - "8125:8125/udp"
+    volumes:
+     - ./statsd.config.js:/usr/src/app/config.js
   victoriametrics:
     image: victoriametrics/victoria-metrics:latest
     restart: always
     command:
       - --retentionPeriod=12
-      - --statsdListenAddr=:8125
+      - --graphiteListenAddr=:2003
       - --storageDataPath=/storage
     ports:
       - "8428:8428"
