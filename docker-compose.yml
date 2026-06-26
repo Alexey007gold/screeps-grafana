@@ -14,6 +14,7 @@ services:
      - statsd
     environment:
      GRAPHITE_PORT_8125_UDP_ADDR: "statsd"
+     SCREEPS_PASSWORD:
     env_file: docker-compose.env
   statsd:
     image: statsd/statsd
