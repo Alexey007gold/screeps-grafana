@@ -102,7 +102,6 @@ export default class ScreepsStatsd {
   }
 
   report(data, prefix="") {
-    console.log(`Pushing to gauges with prefix "${prefix}"; - ${new Date()}`, )
     this.reportRecursive(data, prefix);
   }
 
