@@ -107,9 +107,9 @@ export default class ScreepsStatsd {
 
   reportRecursive(data, prefix="") {
     for (const [k,v] of Object.entries(data)) {
-      if (typeof v === 'object') {
+      if (typeof v === 'object' && v !== null) {
         this.reportRecursive(v, prefix+k+'.');
-      } else {
+      } else if (Number.isFinite(v)) {
         this._client.gauge(prefix+k, v);
       }
     }
