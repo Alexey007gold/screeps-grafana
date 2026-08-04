@@ -91,7 +91,7 @@ export default class ScreepsStatsd {
         });
         const data = await response.json();
 
-        this._token = response.headers['x-token'] || this._token;
+        this._token = response.headers.get('x-token') || this._token;
         if (!data?.data || data.error) throw new Error(data?.error ?? 'No data');
         const unzippedData = JSON.parse(zlib.gunzipSync(Buffer.from(data.data.split('gz:')[1], 'base64')).toString())
         this.report(unzippedData, prefix);
