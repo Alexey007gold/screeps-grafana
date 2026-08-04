@@ -42,7 +42,8 @@ export default class ScreepsStatsd {
         }
       }
     }
-    this._client = new StatsD({host: this._graphite});
+    this._client = new StatsD({host: this._graphite, cacheDns: true});
+    this._client.socket.on('error', err => console.error('statsd socket error:', err));
   }
   run( string ) {
     this.signin();
