@@ -37,10 +37,11 @@ services:
     volumes:
      - screeps-grafana_vm_data:/storage
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:13.2.2
     restart: always
     volumes:
      - screeps-grafana_grafana_data:/var/lib/grafana
+     - ./grafana.ini:/etc/grafana/grafana.ini:ro
     links:
      - victoriametrics
     ports:
