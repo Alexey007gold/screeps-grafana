@@ -28,6 +28,8 @@ export default class ScreepsStatsd {
   _prefixes;
   _token;
   _success;
+  _running = false;
+  _emptyShards = new Set();
   constructor(host, email, password, shards, graphite, prefixes) {
     this._host = host;
     this._email = email;
@@ -36,7 +38,7 @@ export default class ScreepsStatsd {
     this._graphite = graphite;
     this._prefixes = prefixes.split(",");
     if (this._prefixes.length < this._shards.length) {
-      for (let i = 0; i < this._shards.length.length; i++) {
+      for (let i = 0; i < this._shards.length; i++) {
         if (!this._prefixes[i]) {
           this._prefixes[i] = "";
         }
@@ -46,13 +48,14 @@ export default class ScreepsStatsd {
     this._client.socket.on('error', err => console.error('statsd socket error:', err));
   }
   run( string ) {
-    this.signin();
-
     setInterval(() => this.loop(), 1000);
   }
 
   loop() {
-    this.getMemory();
+    // skip the tick if the previous one (or a re-login) is still in flight
+    if (this._running) return;
+    this._running = true;
+    this.getMemory().finally(() => { this._running = false; });
   }
 
   async signin() {
@@ -71,16 +74,24 @@ export default class ScreepsStatsd {
       }
     });
     const data = await response.json();
+    if (!response.ok || !data?.token) {
+      throw new Error(`Signin failed (${response.status}): ${data?.error ?? 'no token in response'}`);
+    }
     this._token = data.token;
   }
 
   async getMemory() {
     try {
       await this.signin();
+    } catch (e) {
+      console.error(e);
+      return;
+    }
 
-      for (let i = 0; i < this._shards.length; i++) {
-        const shard = this._shards[i];
-        const prefix = this._prefixes[i];
+    for (let i = 0; i < this._shards.length; i++) {
+      const shard = this._shards[i];
+      const prefix = this._prefixes[i];
+      try {
         const response = await fetch(this._host + `/api/user/memory?path=stats&shard=${shard}`, {
           method: 'GET',
           headers: {
@@ -89,20 +100,41 @@ export default class ScreepsStatsd {
             'content-type': 'application/json',
           }
         });
-        const data = await response.json();
+
+        if (response.status === 401 || response.status === 403) {
+          // token is no longer valid for any shard: re-login on the next tick
+          this._token = undefined;
+          throw new Error(`Unauthorized (${response.status})`);
+        }
 
         this._token = response.headers.get('x-token') || this._token;
-        if (!data?.data || data.error) throw new Error(data?.error ?? 'No data');
-        const unzippedData = JSON.parse(zlib.gunzipSync(Buffer.from(data.data.split('gz:')[1], 'base64')).toString())
+        const data = await response.json();
+        if (data?.error) throw new Error(data.error);
+
+        // empty/missing Memory.stats is not an auth problem: keep the token, skip this shard
+        if (!data?.data) {
+          if (!this._emptyShards.has(shard)) {
+            this._emptyShards.add(shard);
+            console.warn(`No memory data for shard ${shard}, skipping`);
+          }
+          continue;
+        }
+        this._emptyShards.delete(shard);
+
+        if (typeof data.data !== 'string' || !data.data.startsWith('gz:')) {
+          throw new Error(`Unexpected memory format for shard ${shard}`);
+        }
+        const unzippedData = JSON.parse(zlib.gunzipSync(Buffer.from(data.data.slice(3), 'base64')).toString());
         this.report(unzippedData, prefix);
+      } catch (e) {
+        console.error(`Shard ${shard}:`, e);
+        if (!this._token) break;
       }
-    } catch (e) {
-      console.error(e);
-      this._token = undefined;
     }
   }
 
   report(data, prefix="") {
+    if (!data || typeof data !== 'object') return;
     this.reportRecursive(data, prefix);
   }
 
